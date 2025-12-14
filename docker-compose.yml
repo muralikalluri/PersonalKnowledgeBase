@@ -1,0 +1,52 @@
+version: '3.8'
+
+services:
+  # PostgreSQL with pgvector for Vector Store
+  vector-db:
+    image: pgvector/pgvector:pg16
+    container_name: pkbc-postgres
+    environment:
+      - POSTGRES_USER=postgres
+      - POSTGRES_PASSWORD=postgres
+      - POSTGRES_DB=knowledge_base
+    ports:
+      - "5432:5432"
+    volumes:
+      - ./data/postgres:/var/lib/postgresql/data
+    networks:
+      - pkbc-network
+
+  # MinIO for Local S3 Simulation (Optional, useful if no AWS creds immediately)
+  minio:
+    image: minio/minio
+    container_name: pkbc-minio
+    command: server /data --console-address ":9001"
+    environment:
+      - MINIO_ROOT_USER=minioadmin
+      - MINIO_ROOT_PASSWORD=minioadmin
+    ports:
+      - "9000:9000"
+      - "9001:9001"
+    volumes:
+      - ./data/minio:/data
+    networks:
+      - pkbc-network
+
+  # Create default buckets in MinIO
+  createbuckets:
+    image: minio/mc
+    depends_on:
+      - minio
+    entrypoint: >
+      /bin/sh -c "
+      /usr/bin/mc alias set myminio http://minio:9000 minioadmin minioadmin;
+      /usr/bin/mc mb myminio/knowledge-base-files;
+      /usr/bin/mc anonymous set public myminio/knowledge-base-files;
+      exit 0;
+      "
+    networks:
+      - pkbc-network
+
+networks:
+  pkbc-network:
+    driver: bridge

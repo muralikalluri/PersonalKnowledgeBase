@@ -1,0 +1,16 @@
+server:
+  port: 8081
+
+spring:
+  application:
+    name: document-service
+  cloud:
+    aws:
+      s3:
+        # Defaults to real AWS if keys are provided in env
+        # Access Key / Secret Key should be ENV variables: AWS_ACCESS_KEY_ID, AWS_SECRET_ACCESS_KEY
+      region:
+        static: us-east-1
+
+application:
+  bucket: knowledge-base-files

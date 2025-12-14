@@ -1,0 +1,35 @@
+server:
+  port: 8082
+
+spring:
+  application:
+    name: ingestion-service
+  ai:
+    # VectorStore is hardcoded to SimpleVectorStore in Config
+    bedrock:
+      aws:
+        region: us-east-1
+        access-key: ${AWS_ACCESS_KEY_ID}
+        secret-key: ${AWS_SECRET_ACCESS_KEY}
+      titan:
+        embedding:
+          enabled: true
+    ollama:
+      base-url: http://localhost:11434
+      embedding:
+        enabled: true 
+        # model: llama3 (configure as needed)
+
+  cloud:
+    aws:
+      region:
+        static: us-east-1
+      credentials:
+        access-key: ${AWS_ACCESS_KEY_ID}
+        secret-key: ${AWS_SECRET_ACCESS_KEY}
+
+# Logging
+logging:
+  level:
+    org.springframework.ai: DEBUG
+    org.springframework.boot.autoconfigure: DEBUG

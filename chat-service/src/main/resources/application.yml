@@ -1,0 +1,26 @@
+server:
+  port: 8083
+
+spring:
+  application:
+    name: chat-service
+  ai:
+    bedrock:
+      aws:
+        region: us-east-1
+        access-key: ${AWS_ACCESS_KEY_ID}
+        secret-key: ${AWS_SECRET_ACCESS_KEY}
+      titan:
+        chat:
+          enabled: true
+        embedding:
+          enabled: true
+    ollama:
+      base-url: http://localhost:11434
+      chat:
+        enabled: true
+        # model: llama3
+
+logging:
+  level:
+    org.springframework.ai: DEBUG
