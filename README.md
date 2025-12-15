@@ -10,8 +10,8 @@ The application behaves as a microservices architecture with the following compo
 | :--- | :--- | :--- |
 | **Api Gateway** | `8080` | Entry point for all requests. Routes traffic to backend services. |
 | **Document Service** | `8081` | Handles file uploads to AWS S3. |
-| **Ingestion Service** | `8082` | Downloads files from S3, parses them (Tika), chunks, embeds (Titan), and stores in vector store. |
-| **Chat Service** | `8083` | Handles chat requests, retrieves context from vector store, and calls LLM (Bedrock Titan) for answers. |
+| **Ingestion Service** | `8082` | Downloads files from S3, parses them (Tika), chunks, embeds (Titan Text Embed v1), and stores in vector store. |
+| **Chat Service** | `8083` | Handles chat requests, retrieves context from vector store, and calls LLM (Bedrock Titan Text Express) for answers. |
 | **Frontend** | `4200` | Angular application for user interface. |
 
 ## Prerequisites
@@ -19,30 +19,36 @@ The application behaves as a microservices architecture with the following compo
 *   **Java 21+** (JDK 21 Recommended)
 *   **Maven**
 *   **Node.js** (v20+ recommended) & **npm**
-*   **AWS Account** with access to Bedrock (Titan Embeddings V1, Titan Text Express/Lite) and S3.
+*   **AWS Account** with access to:
+    *   **Bedrock Models**: `amazon.titan-embed-text-v1` (us-east-1) and `amazon.titan-text-express-v1`.
+    *   **S3**: A bucket for storing uploaded documents.
 
 ## Configuration
 
-The services are pre-configured to use `us-east-1` region. You **MUST** provide your AWS credentials.
+**CRITICAL**: You must set the following environment variables. The application relies on `EnvironmentVariableCredentialsProvider` for AWS Authentication.
 
-The backend services (`ingestion-service` and `chat-service`) have been configured to look for these environment variables or fallback to hardcoded values (configured in `application.yml`).
+Set these in your terminal (PowerShell example) or IDE Launch Configuration:
 
-For best security, set these environment variables in your terminal or IDE:
-
-```bash
-export AWS_ACCESS_KEY_ID="your-access-key"
-export AWS_SECRET_ACCESS_KEY="your-secret-key"
-export AWS_REGION="us-east-1"
+```powershell
+$env:AWS_ACCESS_KEY_ID="your-access-key"
+$env:AWS_SECRET_ACCESS_KEY="your-secret-key"
+$env:AWS_REGION="us-east-1"
+$env:AWS_S3_BUCKET="your-s3-bucket-name"
 ```
 
-*Note: The project currently includes default credentials in `launch.json` and `application.yml` for ease of local testing.*
+*Note: The `launch.json` is pre-configured for VS Code debugging, but you must replace the placeholder credentials with valid ones.*
 
 ## Running the Application
 
-You can run the application services individually using Maven or via your IDE.
+It is recommended to build the services first to ensure dependencies are resolved.
 
-### 1. Start Backend Services
+### 1. Build All Services
+```bash
+mvn clean package -DskipTests
+```
+*(Run this in the root or individually in each service folder: api-gateway, document-service, ingestion-service, chat-service)*
 
+### 2. Start Backend Services
 Open separate terminals for each service and run:
 
 **API Gateway:**
@@ -69,8 +75,7 @@ cd chat-service
 mvn spring-boot:run
 ```
 
-### 2. Start Frontend
-
+### 3. Start Frontend
 ```bash
 cd frontend
 npm install # Only first time
@@ -82,11 +87,11 @@ Access the application at: [http://localhost:4200](http://localhost:4200)
 ## Functionality
 
 1.  **Upload**: Go to the "Upload" tab to select and upload document files.
-2.  **Ingestion**: After upload, the file is automatically sent for ingestion (parsed and embedded).
+2.  **Ingestion**: After upload, the file is automatically sent for ingestion (parsed and embedded). *Check Ingestion Service logs for confirmation.*
 3.  **Chat**: Go to the "Chat" tab to ask questions. The system will answer based on the context of your uploaded documents.
 
 ## Technology Stack
 
-*   **Backend**: Java, Spring Boot 3.3.x, Spring AI 0.8.x, Spring Cloud Gateway.
+*   **Backend**: Java 21, Spring Boot 3.3.x, Spring AI 0.8.0, Spring Cloud Gateway.
 *   **Frontend**: Angular 17/18, Tailwind CSS.
 *   **AI/ML**: AWS Bedrock (Titan Embeddings, Titan Text Express), Apache Tika (Document Parsing), SimpleVectorStore (In-memory/File-based vector storage).
