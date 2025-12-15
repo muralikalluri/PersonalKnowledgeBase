@@ -3,10 +3,10 @@ package com.knowledge.chat.ingestion.controller;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.ai.document.Document;
-import org.springframework.ai.reader.tika.TikaDocumentReader;
+
 import org.springframework.ai.transformer.splitter.TokenTextSplitter;
 import org.springframework.ai.vectorstore.VectorStore;
-import org.springframework.core.io.ByteArrayResource;
+
 import org.springframework.core.io.Resource;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
@@ -25,7 +25,9 @@ public class IngestionController {
 
     private final VectorStore vectorStore;
     private final S3Client s3Client;
-    private final String BUCKET_NAME = "knowledge-base-files";
+
+    @org.springframework.beans.factory.annotation.Value("${application.bucket}")
+    private String bucketName;
 
     public IngestionController(VectorStore vectorStore, S3Client s3Client) {
         this.vectorStore = vectorStore;
@@ -39,16 +41,25 @@ public class IngestionController {
         try {
             // 1. Fetch file from S3
             GetObjectRequest getObjectRequest = GetObjectRequest.builder()
-                    .bucket(BUCKET_NAME)
+                    .bucket(bucketName)
                     .key(key)
                     .build();
 
             ResponseBytes<GetObjectResponse> objectBytes = s3Client.getObjectAsBytes(getObjectRequest);
-            Resource resource = new ByteArrayResource(objectBytes.asByteArray());
 
-            // 2. Parse PDF/Document using Tika
-            TikaDocumentReader tikaDocumentReader = new TikaDocumentReader(resource);
-            List<Document> documents = tikaDocumentReader.get();
+            // Fix: Store bytes to temp file as PdfReader requires random access file
+            java.io.File tempFile = java.io.File.createTempFile("ingest-", ".pdf");
+            java.nio.file.Files.write(tempFile.toPath(), objectBytes.asByteArray());
+
+            List<Document> documents;
+            try {
+                Resource resource = new org.springframework.core.io.FileSystemResource(tempFile);
+                org.springframework.ai.reader.pdf.PagePdfDocumentReader pdfReader = new org.springframework.ai.reader.pdf.PagePdfDocumentReader(
+                        resource);
+                documents = pdfReader.get();
+            } finally {
+                tempFile.delete();
+            }
 
             // 3. Split into chunks
             TokenTextSplitter splitter = new TokenTextSplitter();
@@ -59,6 +70,15 @@ public class IngestionController {
             for (Document doc : splitDocuments) {
                 doc.getMetadata().put("source_file", key);
             }
+
+            if (!splitDocuments.isEmpty()) {
+                log.info("About to embed {} documents", splitDocuments.size());
+                log.info("First document content sample (first 200 chars): {}",
+                        splitDocuments.get(0).getContent().substring(0,
+                                Math.min(splitDocuments.get(0).getContent().length(), 200)));
+                log.info("First document metadata: {}", splitDocuments.get(0).getMetadata());
+            }
+
             vectorStore.add(splitDocuments);
 
             // Critical for SimpleVectorStore: Persist to File
@@ -72,7 +92,20 @@ public class IngestionController {
 
         } catch (Exception e) {
             log.error("Error ingesting document", e);
+            if (e instanceof software.amazon.awssdk.services.bedrockruntime.model.ValidationException) {
+                return ResponseEntity.badRequest().body("Bedrock Validation Error: " + e.getMessage());
+            }
             return ResponseEntity.internalServerError().body("Error ingesting document: " + e.getMessage());
+        }
+    }
+
+    @jakarta.annotation.PostConstruct
+    public void logConfig() {
+        log.info("Ingestion Controller Initialized");
+        log.info("Bucket Name: {}", bucketName);
+
+        if (vectorStore != null) {
+            log.info("Vector Store Type: {}", vectorStore.getClass().getName());
         }
     }
 }

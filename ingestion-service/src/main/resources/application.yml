@@ -14,6 +14,8 @@ spring:
       titan:
         embedding:
           enabled: true
+          options:
+            model: amazon.titan-embed-text-v1
     ollama:
       base-url: http://localhost:11434
       embedding:
@@ -33,3 +35,5 @@ logging:
   level:
     org.springframework.ai: DEBUG
     org.springframework.boot.autoconfigure: DEBUG
+application:
+  bucket: ${AWS_S3_BUCKET:personal-knowledge-base-mura}

@@ -26,10 +26,9 @@ export class ApiService {
     }
 
     // Chat Service
-    chat(query: string): Observable<string> {
-        return this.http.get('/api/chat', {
-            params: { query },
-            responseType: 'text'
+    chat(query: string): Observable<{ answer: string }> {
+        return this.http.get<{ answer: string }>('/api/chat', {
+            params: { query }
         });
     }
 }

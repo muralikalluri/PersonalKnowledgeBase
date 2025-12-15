@@ -38,12 +38,7 @@ services:
     depends_on:
       - minio
     entrypoint: >
-      /bin/sh -c "
-      /usr/bin/mc alias set myminio http://minio:9000 minioadmin minioadmin;
-      /usr/bin/mc mb myminio/knowledge-base-files;
-      /usr/bin/mc anonymous set public myminio/knowledge-base-files;
-      exit 0;
-      "
+      /bin/sh -c " /usr/bin/mc alias set myminio http://minio:9000 minioadmin minioadmin; /usr/bin/mc mb myminio/personal-knowledge-base-mura; /usr/bin/mc anonymous set public myminio/personal-knowledge-base-mura; exit 0; "
     networks:
       - pkbc-network
 

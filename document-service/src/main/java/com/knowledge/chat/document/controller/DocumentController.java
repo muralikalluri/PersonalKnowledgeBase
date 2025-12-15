@@ -11,7 +11,6 @@ import software.amazon.awssdk.services.s3.model.ListObjectsV2Response;
 import software.amazon.awssdk.services.s3.model.PutObjectRequest;
 import software.amazon.awssdk.services.s3.model.S3Object;
 
-import java.io.IOException;
 import java.util.List;
 import java.util.UUID;
 import java.util.stream.Collectors;
@@ -21,45 +20,50 @@ import java.util.stream.Collectors;
 public class DocumentController {
 
     private final S3Client s3Client;
-    private final String BUCKET_NAME = "knowledge-base-files";
+
+    @org.springframework.beans.factory.annotation.Value("${application.bucket}")
+    private String bucketName;
 
     public DocumentController(S3Client s3Client) {
         this.s3Client = s3Client;
     }
 
     @PostMapping(consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
-    public ResponseEntity<String> uploadDocument(@RequestParam("file") MultipartFile file) throws IOException {
-        String key = UUID.randomUUID() + "_" + file.getOriginalFilename();
+    public ResponseEntity<String> uploadDocument(@RequestParam("file") MultipartFile file) {
+        try {
+            String key = UUID.randomUUID() + "_" + file.getOriginalFilename();
 
-        PutObjectRequest putObjectRequest = PutObjectRequest.builder()
-                .bucket(BUCKET_NAME)
-                .key(key)
-                .contentType(file.getContentType())
-                .build();
+            PutObjectRequest putObjectRequest = PutObjectRequest.builder()
+                    .bucket(bucketName)
+                    .key(key)
+                    .contentType(file.getContentType())
+                    .build();
 
-        s3Client.putObject(putObjectRequest, RequestBody.fromInputStream(file.getInputStream(), file.getSize()));
+            s3Client.putObject(putObjectRequest, RequestBody.fromInputStream(file.getInputStream(), file.getSize()));
 
-        // In a real event-driven architecture, we would emit an event here (e.g.,
-        // Kafka/RabbitMQ)
-        // For simplicity in this logical separation, we might call the ingestion
-        // service directly or assume a shared DB trigger.
-        // For now, we'll return the key so the frontend can trigger ingestion or just
-        // confirming storage.
-
-        return ResponseEntity.ok(key);
+            return ResponseEntity.ok(key);
+        } catch (Exception e) {
+            e.printStackTrace();
+            return ResponseEntity.internalServerError().body("Upload failed: " + e.getMessage());
+        }
     }
 
     @GetMapping
-    public ResponseEntity<List<String>> listDocuments() {
-        ListObjectsV2Request listReq = ListObjectsV2Request.builder()
-                .bucket(BUCKET_NAME)
-                .build();
+    public ResponseEntity<Object> listDocuments() {
+        try {
+            ListObjectsV2Request listReq = ListObjectsV2Request.builder()
+                    .bucket(bucketName)
+                    .build();
 
-        ListObjectsV2Response listRes = s3Client.listObjectsV2(listReq);
-        List<String> fileNames = listRes.contents().stream()
-                .map(S3Object::key)
-                .collect(Collectors.toList());
+            ListObjectsV2Response listRes = s3Client.listObjectsV2(listReq);
+            List<String> fileNames = listRes.contents().stream()
+                    .map(S3Object::key)
+                    .collect(Collectors.toList());
 
-        return ResponseEntity.ok(fileNames);
+            return ResponseEntity.ok(fileNames);
+        } catch (Exception e) {
+            e.printStackTrace();
+            return ResponseEntity.internalServerError().body("List failed: " + e.getMessage());
+        }
     }
 }

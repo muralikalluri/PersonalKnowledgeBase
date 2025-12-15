@@ -28,7 +28,7 @@ public class ChatController {
     }
 
     @GetMapping
-    public ResponseEntity<String> chat(@RequestParam("query") String query) {
+    public ResponseEntity<Map<String, String>> chat(@RequestParam("query") String query) {
         // 1. Semantic Search
         // Search for top 4 most similar chunks
         List<Document> similarDocuments = vectorStore.similaritySearch(
@@ -45,7 +45,11 @@ public class ChatController {
                 Context:
                 {context}
 
-                If the answer is not in the context, say you don't know.
+                Instructions:
+                1. Answer the question using ONLY the context provided.
+                2. Do not hallucinate or make up information.
+                3. If the answer is not in the context, say "I don't know based on the context provided."
+                4. Provide the answer directly. Do not repeat the question or the "Human:" / "Assistant:" labels.
                 """;
 
         SystemPromptTemplate systemPromptTemplate = new SystemPromptTemplate(systemText);
@@ -53,9 +57,18 @@ public class ChatController {
 
         Prompt prompt = new Prompt(List.of(systemMessage, new UserMessage(query)));
 
-        // 3. Call LLM
+        // 4. Call LLM
         String response = chatClient.call(prompt).getResult().getOutput().getContent();
 
-        return ResponseEntity.ok(response);
+        // Manual cleanup to remove artifacts if the model hallucinates a continuation
+        if (response.contains("Human:")) {
+            response = response.substring(0, response.indexOf("Human:"));
+        }
+        if (response.contains("Assistant:")) {
+            response = response.substring(0, response.indexOf("Assistant:"));
+        }
+        response = response.trim();
+
+        return ResponseEntity.ok(Map.of("answer", response));
     }
 }

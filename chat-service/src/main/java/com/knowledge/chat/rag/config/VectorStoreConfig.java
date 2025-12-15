@@ -24,4 +24,22 @@ public class VectorStoreConfig {
 
         return simpleVectorStore;
     }
+
+    // Explicitly configure Titan Embedding Client to force text-mode
+    @Bean
+    public org.springframework.ai.bedrock.titan.BedrockTitanEmbeddingClient bedrockTitanEmbeddingClient(
+            @org.springframework.beans.factory.annotation.Value("${spring.ai.bedrock.aws.region}") String region,
+            com.fasterxml.jackson.databind.ObjectMapper objectMapper) {
+
+        software.amazon.awssdk.auth.credentials.AwsCredentialsProvider credentialsProvider = software.amazon.awssdk.auth.credentials.DefaultCredentialsProvider
+                .create();
+
+        org.springframework.ai.bedrock.titan.api.TitanEmbeddingBedrockApi titanApi = new org.springframework.ai.bedrock.titan.api.TitanEmbeddingBedrockApi(
+                "amazon.titan-embed-text-v1",
+                credentialsProvider,
+                region,
+                objectMapper);
+
+        return new org.springframework.ai.bedrock.titan.BedrockTitanEmbeddingClient(titanApi);
+    }
 }
